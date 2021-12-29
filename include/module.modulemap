@@ -1,0 +1,5 @@
+module simdjson {
+    requires cplusplus11
+    umbrella header "simdjson.h"
+    export *
+}

@@ -1,0 +1,1 @@
+cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS:STRING='-O3 -march=native -I/usr/local/include' -DCMAKE_ROOT:INTERNAL=/usr/local/opt/cmake/share/cmake -DCMAKE_C_COMPILER:STRING=/usr/local/opt/llvm/bin/clang -DCMAKE_CXX_COMPILER:STRING=/usr/local/opt/llvm/bin/clang++
