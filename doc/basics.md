@@ -54,7 +54,7 @@ c++ myproject.cpp simdjson.cpp
 
 Note:
 - Users on macOS and other platforms where default compilers do not provide C++11 compliant by default should request it with the appropriate flag (e.g., `c++ -std=c++17 myproject.cpp simdjson.cpp`).
-- The library relies on [runtime CPU detection](doc/implementation-selection.md): avoid specifying an architecture at compile time (e.g., `-march-native`).
+- The library relies on [runtime CPU detection](implementation-selection.md): avoid specifying an architecture at compile time (e.g., `-march-native`).
 
 Using simdjson with package managers
 ------------------
@@ -766,7 +766,11 @@ auto error = parser.iterate(json).get(doc);
 if (error) { cerr << error << endl; exit(1); }
 ```
 
-When you use the code this way, it is your responsibility to check for error before using the
+When there is no error, the error code simdjson::SUCCESS is returned: it evaluates as false as a Boolean.
+We have several error codes to indicate errors, they all evaluate to true as a Boolean: your software should not generally not depend on exact
+error codes. We may change the error codes in future releases and the exact error codes could vary depending on your system.
+
+When you use the code without exceptions, it is your responsibility to check for error before using the
 result: if there is an error, the result value will not be valid and using it will caused undefined behavior. Most compilers should be able to help you if you activate the right
 set of warnings: they can identify variables that are written to but never otherwise accessed.
 
@@ -887,6 +891,9 @@ int main(void) {
   std::cout << identifier << std::endl;
 }
 ```
+
+The `at` method can only be called once on an array. It cannot be used
+to iterate through the values of an array.
 
 ### Error Handling Examples without Exceptions
 

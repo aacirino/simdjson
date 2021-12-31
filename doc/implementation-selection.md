@@ -50,7 +50,7 @@ Inspecting the Detected Implementation
 You can check what implementation is running with `active_implementation`:
 
 ```c++
-cout << "simdjson v" << STRINGIFY(SIMDJSON_VERSION) << endl;
+cout << "simdjson v" << SIMDJSON_STRINGIFY(SIMDJSON_VERSION) << endl;
 cout << "Detected the best implementation for your machine: " << simdjson::active_implementation->name();
 cout << "(" << simdjson::active_implementation->description() << ")" << endl;
 ```
@@ -117,5 +117,5 @@ for (auto implementation : simdjson::available_implementations) {
 }
 ```
 
-The call to `supported_by_runtime_system()` maybe relatively expensive. Do not call  `supported_by_runtime_system()` each
+The call to `supported_by_runtime_system()` may be relatively expensive. Do not call  `supported_by_runtime_system()` each
 time you parse a JSON input (for example). It is meant to be called a handful of times at most in the life of a program.
