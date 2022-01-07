@@ -118,7 +118,7 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 install(
-    FILES singleheader/simdjson.h
+    FILES singleheader/simdjson.h include/module.modulemap
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     COMPONENT simdjson_Development
 )
