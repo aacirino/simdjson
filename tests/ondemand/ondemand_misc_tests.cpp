@@ -52,6 +52,53 @@ namespace misc_tests {
     TEST_SUCCEED();
   }
 
+  bool issue1870() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = R"("\uDC00")"_padded;
+    ondemand::document doc;
+    ASSERT_SUCCESS(parser.iterate(json).get(doc));
+    std::string_view view;
+    ASSERT_ERROR( doc.get_string().get(view), STRING_ERROR );
+    TEST_SUCCEED();
+  }
+
+  // Test a surrogate pair with the low surrogate out of range
+  bool issue1894() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = R"("\uD888\u1234")"_padded;
+    ondemand::document doc;
+    ASSERT_SUCCESS(parser.iterate(json).get(doc));
+    std::string_view view;
+    ASSERT_ERROR(doc.get_string().get(view), STRING_ERROR);
+    TEST_SUCCEED();
+  }
+
+  bool issue1894toolarge() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = R"("\uD888\uE000")"_padded;
+    ondemand::document doc;
+    ASSERT_SUCCESS(parser.iterate(json).get(doc));
+    std::string_view view;
+    ASSERT_ERROR(doc.get_string().get(view), STRING_ERROR);
+    TEST_SUCCEED();
+  }
+
+  // Test the smallest surrogate pair, largest surrogate pair, and a surrogate pair in range.
+  bool issue1894success() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = R"("\uD888\uDC00\uD800\uDC00\uDBFF\uDFFF")"_padded;
+    ondemand::document doc;
+    ASSERT_SUCCESS(parser.iterate(json).get(doc));
+    std::string_view view;
+    ASSERT_SUCCESS(doc.get_string().get(view));
+	ASSERT_EQUAL(view, "\xf0\xb2\x80\x80\xf0\x90\x80\x80\xf4\x8f\xbf\xbf");
+    TEST_SUCCEED();
+  }
+
   bool issue1660() {
     TEST_START();
     ondemand::parser parser;
@@ -224,7 +271,9 @@ namespace misc_tests {
       ASSERT_SUCCESS(global.get(global_object));
       ondemand::value shadowable;
       ASSERT_SUCCESS(global_object["shadowable"].get(shadowable));
-      ASSERT_TRUE(!shadowable.is_null());
+      bool is_null_value;
+      ASSERT_SUCCESS(shadowable.is_null().get(is_null_value));
+      ASSERT_TRUE(!is_null_value);
       ondemand::value badvalue;
       auto error = global_object["writable"].get(badvalue);
       if(error == SUCCESS) {
@@ -447,6 +496,10 @@ namespace misc_tests {
 
   bool run() {
     return
+           issue1870() &&
+           issue1894() &&
+           issue1894toolarge() &&
+           issue1894success() &&
            is_alive_root_array() &&
            is_alive_root_object() &&
            is_alive_array() &&

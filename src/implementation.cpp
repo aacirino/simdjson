@@ -14,6 +14,12 @@ namespace internal {
 // Static array of known implementations. We're hoping these get baked into the executable
 // without requiring a static initializer.
 
+#if SIMDJSON_IMPLEMENTATION_ICELAKE
+static const icelake::implementation* get_icelake_singleton() {
+  static const icelake::implementation icelake_singleton{};
+  return &icelake_singleton;
+}
+#endif
 #if SIMDJSON_IMPLEMENTATION_HASWELL
 static const haswell::implementation* get_haswell_singleton() {
   static const haswell::implementation haswell_singleton{};
@@ -66,13 +72,16 @@ public:
   simdjson_warn_unused bool validate_utf8(const char * buf, size_t len) const noexcept final override {
     return set_best()->validate_utf8(buf, len);
   }
-  simdjson_really_inline detect_best_supported_implementation_on_first_use() noexcept : implementation("best_supported_detector", "Detects the best supported implementation and sets it", 0) {}
+  simdjson_inline detect_best_supported_implementation_on_first_use() noexcept : implementation("best_supported_detector", "Detects the best supported implementation and sets it", 0) {}
 private:
   const implementation *set_best() const noexcept;
 };
 
 static const std::initializer_list<const implementation *>& get_available_implementation_pointers() {
   static const std::initializer_list<const implementation *> available_implementation_pointers {
+#if SIMDJSON_IMPLEMENTATION_ICELAKE
+    get_icelake_singleton(),
+#endif
 #if SIMDJSON_IMPLEMENTATION_HASWELL
     get_haswell_singleton(),
 #endif
@@ -179,7 +188,6 @@ simdjson_warn_unused error_code minify(const char *buf, size_t len, char *dst, s
 simdjson_warn_unused bool validate_utf8(const char *buf, size_t len) noexcept {
   return get_active_implementation()->validate_utf8(buf, len);
 }
-
 const implementation * builtin_implementation() {
   static const implementation * builtin_impl = get_available_implementations()[SIMDJSON_STRINGIFY(SIMDJSON_BUILTIN_IMPLEMENTATION)];
   assert(builtin_impl);

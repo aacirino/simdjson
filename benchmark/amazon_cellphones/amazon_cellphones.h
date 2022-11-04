@@ -4,18 +4,22 @@
 #include <map>
 #include <string>
 
+
 namespace amazon_cellphones {
+
+const bool UNTHREADED = false;
+const bool THREADED = true;
 
 using namespace json_benchmark;
 
 struct brand {
     double cumulative_rating;
     uint64_t reviews_count;
-    simdjson_really_inline bool operator==(const brand &other) const {
+    simdjson_inline bool operator==(const brand &other) const {
         return cumulative_rating == other.cumulative_rating &&
             reviews_count == other.reviews_count;
     }
-    simdjson_really_inline bool operator!=(const brand &other) const { return !(*this == other); }
+    simdjson_inline bool operator!=(const brand &other) const { return !(*this == other); }
 };
 
 simdjson_unused static std::ostream &operator<<(std::ostream &o, const brand &b) {
@@ -59,10 +63,11 @@ struct runner : public file_runner<I> {
     }
 };
 
+template<bool threaded>
 struct simdjson_dom;
 
-template<typename I> simdjson_really_inline static void amazon_cellphones(benchmark::State &state) {
-  run_json_benchmark<runner<I>, runner<simdjson_dom>>(state);
+template<typename I> simdjson_inline static void amazon_cellphones(benchmark::State &state) {
+  run_json_benchmark<runner<I>, runner<simdjson_dom<UNTHREADED>>>(state);
 }
 
 }   // namespace amazon_cellphones

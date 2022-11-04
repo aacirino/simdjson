@@ -39,7 +39,6 @@ using error_code=simdjson::error_code;
       }
     }
     return true;
-
   }
 
 void recursive_print_json(ondemand::value element) {
@@ -88,7 +87,11 @@ void recursive_print_json(ondemand::value element) {
       cout << element.get_bool();
       break;
     case ondemand::json_type::null:
-      cout << "null";
+      // we check that the value is indeed null
+      // otherwise: an error is thrown.
+      if(element.is_null()) {
+        cout << "null";
+      }
       break;
     }
 }
@@ -104,6 +107,89 @@ bool basics_treewalk() {
     ondemand::document doc = parser.iterate(json[i]);
     ondemand::value val = doc;
     recursive_print_json(val);
+    std::cout << std::endl;
+  }
+  return true;
+}
+
+void print_depth_space(ondemand::value element) {
+  for(auto i = 0; i < element.current_depth(); i++) {
+    cout << " ";
+  }
+}
+
+void recursive_print_json_breakline(ondemand::value element) {
+    bool add_comma;
+    switch (element.type()) {
+    case ondemand::json_type::array:
+      cout << endl;
+      print_depth_space(element);
+      cout << "[";
+      add_comma = false;
+      for (auto child : element.get_array()) {
+        if (add_comma) {
+          print_depth_space(element);
+          cout << ",";
+        }
+        // We need the call to value() to get
+        // an ondemand::value type.
+        recursive_print_json_breakline(child.value());
+        add_comma = true;
+      }
+      cout << "]";
+      break;
+    case ondemand::json_type::object:
+      cout << endl;
+      print_depth_space(element);
+      cout << "{";
+      add_comma = false;
+      for (auto field : element.get_object()) {
+        if (add_comma) {
+          print_depth_space(element);
+          cout << ",";
+        }
+        // key() returns the key as it appears in the raw
+        // JSON document, if we want the unescaped key,
+        // we should do field.unescaped_key().
+        cout << "\"" << field.key() << "\": ";
+        recursive_print_json_breakline(field.value());
+        add_comma = true;
+      }
+      cout << "}\n";
+      break;
+    case ondemand::json_type::number:
+      // assume it fits in a double
+      cout << element.get_double();
+      break;
+    case ondemand::json_type::string:
+      // get_string() would return escaped string, but
+      // we are happy with unescaped string.
+      cout << "\"" << element.get_raw_json_string() << "\"";
+      break;
+    case ondemand::json_type::boolean:
+      cout << element.get_bool();
+      break;
+    case ondemand::json_type::null:
+      // We check that the value is indeed null
+      // otherwise: an error is thrown.
+      if(element.is_null()) {
+        cout << "null";
+      }
+      break;
+    }
+}
+
+bool basics_treewalk_breakline() {
+  padded_string json[3] = {R"( [
+    { "make": "Toyota", "model": "Camry",  "year": 2018, "tire_pressure": [ 40.1, 39.9, 37.7, 40.4 ] },
+    { "make": "Kia",    "model": "Soul",   "year": 2012, "tire_pressure": [ 30.1, 31.0, 28.6, 28.7 ] },
+    { "make": "Toyota", "model": "Tercel", "year": 1999, "tire_pressure": [ 29.8, 30.0, 30.2, 30.5 ] }
+  ] )"_padded, R"( {"key":"value"} )"_padded, "[12,3]"_padded};
+  ondemand::parser parser;
+  for(size_t i = 0 ; i < 3; i++) {
+    ondemand::document doc = parser.iterate(json[i]);
+    ondemand::value val = doc;
+    recursive_print_json_breakline(val);
     std::cout << std::endl;
   }
   return true;
@@ -673,7 +759,7 @@ bool stream_capacity_example() {
   if( error ) { /* handle the error */ }
   for (auto doc: stream) {
     if(counter < 6) {
-      int64_t val;
+      int64_t val{};
       error = doc.at_pointer("/4").get(val);
       if( error ) { /* handle the error */ }
       std::cout << "5 = " << val << std::endl;
@@ -713,6 +799,29 @@ bool simple_error_example() {
 
 
 #if SIMDJSON_EXCEPTIONS
+  bool raw_string() {
+    TEST_START();
+    auto json = R"( {"name": "Jack The Ripper \u0033"} )"_padded;
+    // We create a buffer large enough to store all strings we need:
+    std::unique_ptr<uint8_t[]> buffer(new uint8_t[json.size() + simdjson::SIMDJSON_PADDING]);
+    uint8_t * ptr = buffer.get();
+    ondemand::parser parser;
+    ondemand::document doc = parser.iterate(json);
+    // We store our strings as 'string_view' instances in a vector:
+    std::vector<std::string_view> mystrings;
+    for (auto key_value : doc.get_object()) {
+      std::string_view keysv = parser.unescape(key_value.key(), ptr);// writes 'name'
+      mystrings.push_back(keysv);
+      std::string_view valuesv = parser.unescape(key_value.value().get_raw_json_string(), ptr);
+      // writes 'Jack The Ripper 3', escaping the \u0033
+      mystrings.push_back(valuesv);
+    }
+    ASSERT_EQUAL(mystrings[0],"name");
+    ASSERT_EQUAL(mystrings[1],"Jack The Ripper 3");
+    TEST_SUCCEED();
+  }
+
+
   bool simple_error_example_except() {
     TEST_START();
     ondemand::parser parser;
@@ -721,30 +830,34 @@ bool simple_error_example() {
       ondemand::document doc = parser.iterate(json);
       double x = doc["bad number"].get_double();
       std::cout << "Got " << x << std::endl;
-      return true;
+      TEST_SUCCEED();
     } catch(simdjson_error& e) {
       // e.error() == NUMBER_ERROR
       std::cout << e.error() << std::endl;
-      return false;
+      TEST_FAIL("I did not expect an exception");
     }
   }
 
   int64_t current_location_tape_error_with_except() {
+    TEST_START();
     auto broken_json = R"( {"double": 13.06, false, "integer": -343} )"_padded;
     ondemand::parser parser;
-    ondemand::document doc = parser.iterate(broken_json);
+    ondemand::document doc;
     try {
+      doc = parser.iterate(broken_json);
       return int64_t(doc["integer"]);
     } catch(simdjson_error& err) {
-      std::cerr << err.error() << std::endl;
-      std::cerr << doc.current_location() << std::endl;
-      return -1;
+      std::cout << err.error() << std::endl;
+      std::cout << doc.current_location() << std::endl;
+      TEST_SUCCEED();
     }
+    TEST_FAIL("I expected an exception!");
   }
 
 #endif
 
 int load_example() {
+  TEST_START();
   simdjson::ondemand::parser parser;
   simdjson::ondemand::document tweets;
   padded_string json;
@@ -793,6 +906,7 @@ int example_1() {
 }
 #if SIMDJSON_EXCEPTIONS
 int load_example_except() {
+  TEST_START();
   simdjson::ondemand::parser parser;
   padded_string json = padded_string::load("twitter.json");
   simdjson::ondemand::document tweets = parser.iterate(json);
@@ -879,14 +993,12 @@ bool current_location_no_error() {
   TEST_SUCCEED();
 }
 
-int main() {
-#if SIMDJSON_EXCEPTIONS
-  basics_treewalk();
-#endif
-  if (
-    true
+bool run() {
+  return true
 #if SIMDJSON_EXCEPTIONS
 //    && basics_1() // Fails because twitter.json isn't in current directory. Compile test only.
+    &&  basics_treewalk()
+    &&  basics_treewalk_breakline()
     && json_value_with_array_count()
     && json_array_with_array_count()
     && json_array_count_complex()
@@ -919,12 +1031,13 @@ int main() {
     && current_location_out_of_bounds()
     && current_location_no_error()
   #if SIMDJSON_EXCEPTIONS
+    && raw_string()
     && number_tests()
     && current_location_tape_error_with_except()
   #endif
-  ) {
-    return 0;
-  } else {
-    return 1;
-  }
+  ;
+}
+
+int main(int argc, char *argv[]) {
+  return test_main(argc, argv, run);
 }
