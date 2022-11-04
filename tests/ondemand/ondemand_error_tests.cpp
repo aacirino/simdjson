@@ -6,6 +6,26 @@ using namespace simdjson;
 namespace error_tests {
   using namespace std;
 
+  bool issue1834() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = "[[]"_padded;
+    json.data()[json.size()] = ']';
+    auto doc = parser.iterate(json);
+    size_t cnt{};
+    auto error = doc.count_elements().get(cnt);
+    return error != simdjson::SUCCESS;
+  }
+  bool issue1834_2() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = "{\"a\":{}"_padded;
+    json.data()[json.size()] = '}';
+    auto doc = parser.iterate(json);
+    size_t cnt{};
+    auto error = doc.count_fields().get(cnt);
+    return error != simdjson::SUCCESS;
+  }
   bool empty_document_error() {
     TEST_START();
     ondemand::parser parser;
@@ -99,7 +119,9 @@ namespace error_tests {
     SUBTEST("simdjson_result<ondemand::value>", test_ondemand_doc(json, [&](auto doc) {
       simdjson_result<ondemand::value> val = doc["val"];
       // Get everything that can fail in both forward and backwards order
-      ASSERT_EQUAL( val.is_null(), false );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
@@ -111,15 +133,18 @@ namespace error_tests {
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), false );
       ASSERT_SUCCESS( val.get_bool() );
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       TEST_SUCCEED();
     }));
     SUBTEST("ondemand::value", test_ondemand_doc(json, [&](auto doc) {
       ondemand::value val;
       ASSERT_SUCCESS( doc["val"].get(val) );
       // Get everything that can fail in both forward and backwards order
-      ASSERT_EQUAL( val.is_null(), false );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
@@ -131,14 +156,17 @@ namespace error_tests {
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), false );
       ASSERT_SUCCESS( val.get_bool() );
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       TEST_SUCCEED();
     }));
     json = R"(true)"_padded;
     SUBTEST("simdjson_result<ondemand::document>", test_ondemand_doc(json, [&](simdjson_result<ondemand::document> val) {
       // Get everything that can fail in both forward and backwards order
-      ASSERT_EQUAL( val.is_null(), false );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
@@ -150,14 +178,17 @@ namespace error_tests {
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), false );
       ASSERT_SUCCESS( val.get_bool());
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       TEST_SUCCEED();
     }));
     SUBTEST("ondemand::document", test_ondemand_doc(json, [&](auto doc) {
       ondemand::document val;
       ASSERT_SUCCESS( std::move(doc).get(val) );      // Get everything that can fail in both forward and backwards order
-      ASSERT_EQUAL( val.is_null(), false );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
@@ -169,8 +200,9 @@ namespace error_tests {
       ASSERT_ERROR( val.get_double(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), false );
       ASSERT_SUCCESS( val.get_bool() );
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, false );
       TEST_SUCCEED();
     }));
 
@@ -196,13 +228,16 @@ namespace error_tests {
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_bool(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), true );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, true );
       TEST_SUCCEED();
     }));
     SUBTEST("ondemand::value", test_ondemand_doc(json, [&](auto doc) {
       ondemand::value val;
       ASSERT_SUCCESS( doc["val"].get(val) );
       // Get everything that can fail in both forward and backwards order
+
       ASSERT_ERROR( val.get_bool(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
@@ -216,7 +251,9 @@ namespace error_tests {
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_bool(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), true );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, true );
       TEST_SUCCEED();
     }));
     json = R"(null)"_padded;
@@ -235,7 +272,9 @@ namespace error_tests {
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_bool(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), true );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, true );
       TEST_SUCCEED();
     }));
     SUBTEST("ondemand::document", test_ondemand_doc(json, [&](auto doc) {
@@ -254,7 +293,9 @@ namespace error_tests {
       ASSERT_ERROR( val.get_string(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_array(), INCORRECT_TYPE );
       ASSERT_ERROR( val.get_bool(), INCORRECT_TYPE );
-      ASSERT_EQUAL( val.is_null(), true );
+      bool is_null_value;
+      ASSERT_SUCCESS( val.is_null().get(is_null_value) );
+      ASSERT_EQUAL( is_null_value, true );
       TEST_SUCCEED();
     }));
     TEST_SUCCEED();
@@ -272,6 +313,8 @@ namespace error_tests {
 
   bool run() {
     return
+           issue1834() &&
+           issue1834_2() &&
 #if SIMDJSON_EXCEPTIONS
            raw_json_string_except() &&
            raw_json_string_except_with_io() &&

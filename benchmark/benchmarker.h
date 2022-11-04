@@ -2,7 +2,7 @@
 #define __BENCHMARKER_H
 
 #include "event_counter.h"
-#include "simdjson.h" // For SIMDJSON_DISABLE_DEPRECATED_WARNINGS
+#include "simdjson.h"
 
 #include <cassert>
 #include <cctype>
@@ -308,7 +308,7 @@ struct benchmarker {
     return all_stages_without_allocation.iterations;
   }
 
-  simdjson_really_inline void run_iteration(bool stage1_only, bool hotbuffers=false) {
+  simdjson_inline void run_iteration(bool stage1_only, bool hotbuffers=false) {
     // Allocate dom::parser
     collector.start();
     dom::parser parser;
@@ -384,7 +384,7 @@ struct benchmarker {
     loop << all_loop_count;
   }
 
-  simdjson_really_inline void run_iterations(size_t iterations, bool stage1_only, bool hotbuffers=false) {
+  simdjson_inline void run_iterations(size_t iterations, bool stage1_only, bool hotbuffers=false) {
     for (size_t i = 0; i<iterations; i++) {
       run_iteration(stage1_only, hotbuffers);
     }
@@ -423,7 +423,7 @@ struct benchmarker {
         stage.instructions() / static_cast<double>(stats->structurals),
         stage.instructions() / static_cast<double>(stage.cycles())
       );
-
+#if !SIMDJSON_SIMPLE_PERFORMANCE_COUNTERS
       // NOTE: removed cycles/miss because it is a somewhat misleading stat
       printf("%s%-13s: %7.0f branch misses (%6.2f%%) - %.0f cache misses (%6.2f%%) - %.2f cache references\n",
         prefix,
@@ -434,6 +434,7 @@ struct benchmarker {
         percent(stage.cache_misses(), all_stages_without_allocation.cache_misses()),
         stage.cache_references()
       );
+#endif
     }
   }
 

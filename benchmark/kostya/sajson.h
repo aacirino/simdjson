@@ -11,8 +11,9 @@ struct sajson {
 
   size_t ast_buffer_size{0};
   size_t *ast_buffer{nullptr};
+  ~sajson() { free(ast_buffer); }
 
-  simdjson_really_inline double get_double(const ::sajson::value &obj, std::string_view key) {
+  simdjson_inline double get_double(const ::sajson::value &obj, std::string_view key) {
     using namespace sajson;
 
     auto val = obj.get_value_of_key({key.data(), key.length()});

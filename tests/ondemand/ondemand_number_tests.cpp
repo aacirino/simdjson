@@ -170,6 +170,20 @@ namespace number_tests {
     simdjson_unused auto blah2=blah.get(x);
   }
 
+  bool issue_1898() {
+    TEST_START();
+    padded_string negative_zero_string(std::string_view("-1e-999"));
+    simdjson::ondemand::parser parser;
+    ondemand::document doc;
+    ASSERT_SUCCESS(parser.iterate(negative_zero_string).get(doc));
+    double x;
+    ASSERT_SUCCESS(doc.get(x));
+    // should be minus 0
+    ASSERT_TRUE(std::signbit(x));
+    ASSERT_TRUE(x == -0);
+    TEST_SUCCEED();
+  }
+
   bool old_crashes() {
     TEST_START();
     github_issue_1273();
@@ -197,16 +211,18 @@ namespace number_tests {
   bool get_number_tests() {
     TEST_START();
     ondemand::parser parser;
-    padded_string docdata = R"([1.0, 3, 1, 3.1415,-13231232,9999999999999999999])"_padded;
+    padded_string docdata = R"([1.0, 3, 1, 3.1415,-13231232,9999999999999999999,-9223372036854775807,-9223372036854775808])"_padded;
     ondemand::number_type expectedtypes[] = {ondemand::number_type::floating_point_number,
                                  ondemand::number_type::signed_integer,
                                  ondemand::number_type::signed_integer,
                                  ondemand::number_type::floating_point_number,
                                  ondemand::number_type::signed_integer,
-                                 ondemand::number_type::unsigned_integer
+                                 ondemand::number_type::unsigned_integer,
+                                 ondemand::number_type::signed_integer,
+                                 ondemand::number_type::signed_integer
                                  };
-    bool is_negative[] = {false, false, false, false, true, false};
-    bool is_integer[] = {false, true, true, false, true, true};
+    bool is_negative[] = {false, false, false, false, true, false, true, true};
+    bool is_integer[] = {false, true, true, false, true, true, true, true};
 
     ondemand::document doc;
     ASSERT_SUCCESS(parser.iterate(docdata).get(doc));
@@ -258,6 +274,61 @@ namespace number_tests {
         ASSERT_EQUAL((uint64_t)num, UINT64_C(9999999999999999999));
       }
       counter++;
+    }
+    TEST_SUCCEED();
+  }
+
+  bool issue1878() {
+    TEST_START();
+    ondemand::parser parser;
+    auto json = R"(123_abc)"_padded;
+    for (char ch : {'_', '%', 'z', '&', '\\', '/', '*'}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_int64().error(), NUMBER_ERROR);
+    }
+    for (char ch : {'[', ']', '{', '}', ',', ' '}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_int64().error(), TRAILING_CONTENT);
+    }
+    for (char ch : {'_', '%', 'z', '&', '\\', '/', '*'}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_uint64().error(), NUMBER_ERROR);
+    }
+    for (char ch : {'[', ']', '{', '}', ',', ' '}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_uint64().error(), TRAILING_CONTENT);
+    }
+    for (char ch : {'_', '%', 'z', '&', '\\', '/', '*'}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_double().error(), NUMBER_ERROR);
+    }
+    for (char ch : {'[', ']', '{', '}', ',', ' '}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_double().error(), TRAILING_CONTENT);
+    }
+    for (char ch : {'_', '%', 'z', '&', '\\', '/', '*'}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_number().error(), NUMBER_ERROR);
+    }
+    for (char ch : {'[', ']', '{', '}', ',', ' '}) {
+      json.data()[3] = ch;
+      ondemand::document doc;
+      ASSERT_SUCCESS(parser.iterate(json).get(doc));
+      ASSERT_ERROR(doc.get_number().error(), TRAILING_CONTENT);
     }
     TEST_SUCCEED();
   }
@@ -319,7 +390,9 @@ namespace number_tests {
     TEST_SUCCEED();
   }
   bool run() {
-    return get_root_number_tests() &&
+    return issue_1898() &&
+           issue1878() &&
+           get_root_number_tests() &&
            get_number_tests()&&
            small_integers() &&
            powers_of_two() &&

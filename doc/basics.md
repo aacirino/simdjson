@@ -3,37 +3,45 @@ The Basics
 
 An overview of what you need to know to use simdjson, with examples.
 
-* [Requirements](#requirements)
-* [Including simdjson](#including-simdjson)
-* [Using simdjson with package managers](#using-simdjson-with-package-managers)
-* [Using simdjson as a CMake dependency](#using-simdjson-as-a-cmake-dependency)
-* [Versions](#versions)
-* [The Basics: Loading and Parsing JSON Documents](#the-basics-loading-and-parsing-json-documents)
-* [Documents are Iterators](#documents-are-iterators)
-* [C++11 Support and string_view](#c11-support-and-string_view)
-* [Using the Parsed JSON](#using-the-parsed-json)
-* [Minifying JSON strings without parsing](#minifying-json-strings-without-parsing)
-* [UTF-8 validation (alone)](#utf-8-validation-alone)
-* [JSON Pointer](#json-pointer)
-* [Error Handling](#error-handling)
-  * [Error Handling Example without Exceptions](#error-handling-examples-without-exceptions)
-  * [Disabling Exceptions](#disabling-exceptions)
-  * [Exceptions](#exceptions)
-  * [Current location in document](#current-location-in-document)
-* [Rewinding](#rewinding)
-* [Direct Access to the Raw String](#direct-access-to-the-raw-string)
-* [Newline-Delimited JSON (ndjson) and JSON lines](#newline-delimited-json-ndjson-and-json-lines)
-* [Parsing Numbers Inside Strings](#parsing-numbers-inside-strings)
-* [Dynamic Number Types](#dynamic-number-types)
-* [Thread Safety](#thread-safety)
-* [Standard Compliance](#standard-compliance)
+- [The Basics](#the-basics)
+  - [Requirements](#requirements)
+  - [Including simdjson](#including-simdjson)
+  - [Using simdjson with package managers](#using-simdjson-with-package-managers)
+  - [Using simdjson as a CMake dependency](#using-simdjson-as-a-cmake-dependency)
+  - [Versions](#versions)
+  - [The Basics: Loading and Parsing JSON Documents](#the-basics-loading-and-parsing-json-documents)
+  - [Documents are Iterators](#documents-are-iterators)
+    - [Parser, Document and JSON Scope](#parser-document-and-json-scope)
+  - [C++11 Support and string_view](#c11-support-and-string_view)
+  - [Using the Parsed JSON](#using-the-parsed-json)
+    - [Using the Parsed JSON: Additional examples](#using-the-parsed-json-additional-examples)
+  - [Minifying JSON strings without parsing](#minifying-json-strings-without-parsing)
+  - [UTF-8 validation (alone)](#utf-8-validation-alone)
+  - [JSON Pointer](#json-pointer)
+  - [Error Handling](#error-handling)
+    - [Error Handling Examples without Exceptions](#error-handling-examples-without-exceptions)
+    - [Disabling Exceptions](#disabling-exceptions)
+    - [Exceptions](#exceptions)
+    - [Current location in document](#current-location-in-document)
+  - [Rewinding](#rewinding)
+  - [Direct Access to the Raw String](#direct-access-to-the-raw-string)
+  - [Newline-Delimited JSON (ndjson) and JSON lines](#newline-delimited-json-ndjson-and-json-lines)
+  - [Parsing Numbers Inside Strings](#parsing-numbers-inside-strings)
+  - [Dynamic Number Types](#dynamic-number-types)
+  - [Raw Strings](#raw-strings)
+  - [Thread Safety](#thread-safety)
+  - [Standard Compliance](#standard-compliance)
+  - [Backwards Compatibility](#backwards-compatibility)
 
 
 Requirements
 ------------------
 
-- A recent compiler (LLVM clang6 or better, GNU GCC 7.4 or better, Xcode 11 or better) on a 64-bit (PPC, ARM or x64 Intel/AMD) POSIX systems such as macOS, freeBSD or Linux. We require that the compiler supports the C++11 standard or better.
+- A recent compiler (LLVM clang 6 or better, GNU GCC 7.4 or better, Xcode 11 or better) on a 64-bit (PPC, ARM or x64 Intel/AMD) POSIX systems such as macOS, freeBSD or Linux. We require that the compiler supports the C++11 standard or better.
 - Visual Studio 2017 or better under 64-bit Windows. Users should target a 64-bit build (x64) instead of a 32-bit build (x86). We support the LLVM clang compiler under Visual Studio (clangcl) as well as as the regular Visual Studio compiler. We also support MinGW 64-bit under Windows.
+
+
+Support for AVX-512 require a processor with AVX512-VBMI2 support (Ice Lake or better) under a 64-bit system and a recent compiler (LLVM clang 6 or better, GCC 8 or better, Visual Studio 2019 or better).
 
 Including simdjson
 ------------------
@@ -91,7 +99,7 @@ We recommend CMake version 3.15 or better.
 
 See [our CMake demonstration](https://github.com/simdjson/cmake_demo_single_file). It works under Linux, FreeBSD, macOS and Windows (including Visual Studio).
 
-The CMake build in simdjson can be taylored with a few variables. You can see the available variables and their default values by entering the `cmake -LA` command.
+The CMake build in simdjson can be tailored with a few variables. You can see the available variables and their default values by entering the `cmake -LA` command.
 
 
 Versions
@@ -237,27 +245,34 @@ transcode the UTF-8 strings produced by the simdjson library to other formats. S
 Using the Parsed JSON
 ---------------------
 
-
-
-We recommend that you first compile and run your code in Debug mode (with `NDEBUG`
-undefined). When you do so, the simdjson library runs additional sanity tests on
-your code to help ensure that you are using the library in a safe manner. Once
-your code has been tested, you can then run it in Release mode (with `NDEBUG`
-defined) for best performance. Alternatively, you can set the macro
-`SIMDJSON_DEVELOPMENT_CHECKS` to 1 prior to including the `simdjson.h` header
-to enable these additional checks: just make sure you remove the definition once your
-code has been tested.
+We recommend that you first compile and run your code in Debug mode: under Visual Studio,
+it means having the `_DEBUG` macro defined, and, for other compilers, it means leaving
+the `__OPTIMIZE__` macro undefined. The simdjson code will set `SIMDJSON_DEVELOPMENT_CHECKS=1`.
+Alternatively, you can set the macro `SIMDJSON_DEVELOPMENT_CHECKS` to 1 prior to including
+the `simdjson.h` header to enable these additional checks: just make sure you remove the
+definition once your code has been tested. When `SIMDJSON_DEVELOPMENT_CHECKS` is set to 1, the
+simdjson library runs additional (expensive) tests on your code to help ensure that you are
+using the library in a safe manner. Once your code has been tested, you can then run it in
+Release mode: under Visual Studio, it means having the `_DEBUG` macro undefined, and, for other
+compilers, it means setting `__OPTIMIZE__` to a positive integer. You can also forcefully
+disable these checks by setting `SIMDJSON_DEVELOPMENT_CHECKS` to 0. Once your code is tested, we
+further encourage you to define `NDEBUG` in your Release builds to disable additional runtime
+testing and get the best performance.
 
 Once you have a document (`simdjson::ondemand::document`), you can navigate it with
 idiomatic C++ iterators, operators and casts. Besides the document instances and
 native types (`double`, `uint64_t`, `int64_t`, `bool`), we also access
 Unicode (UTF-8) strings (`std::string_view`), objects (`simdjson::ondemand::object`)
 and arrays (`simdjson::ondemand::array`).
-We also have a generic type (`simdjson::ondemand::value`) which represents a potential
+We also have a generic ephemeral type (`simdjson::ondemand::value`) which represents a potential
 array or object, or scalar type (`double`, `uint64_t`, `int64_t`, `bool`, `null`, string) inside
 an array or an object. Both generic types (`simdjson::ondemand::document` and
 `simdjson::ondemand::value`) have a `type()` method returning a `json_type` value describing the
-value (`json_type::array`, `json_type::object`, `json_type::number`, `json_type::string`, `json_type::boolean`, `json_type::null`).
+value (`json_type::array`, `json_type::object`, `json_type::number`, `json_type::string`,
+`json_type::boolean`, `json_type::null`). A generic value (`simdjson::ondemand::value`)
+is only valid temporarily, as soon as you access other values, other keys in objects, etc.
+it becomes invalid: you should therefore consume the value immediately by converting it to a
+scalar type, an array or an object.
 
 Advanced users who need to determine the number types (integer or float) dynamically,
 should review our section [dynamic number types](#dynamic-number-types). Indeed,
@@ -292,10 +307,12 @@ support for users who avoid exceptions. See [the simdjson error handling documen
   comparison. For efficiency reason, you should avoid looking up the same field repeatedly: e.g., do
   not do `object["foo"]` followed by `object["foo"]` with the same `object` instance. If you consume an
   object twice: `std::string_view(object["foo"]` followed by `std::string_view(object["foo"]`, your code
-  is in error. Furthermore, you can only consume one field at a time, on the same object. Thus
-  if you have retrieved `content["bids"].get_array()` and you later call `content["asks"].get_array()`, then the
-  first array should no longer be accessed: it would be unsafe to do so. You can detect such mistakes by first
-  compiling and running the code in Debug mode: an OUT_OF_ORDER_ITERATION error is generated.
+  is in error. Furthermore, you can only consume one field at a time, on the same object. The
+  value instance you get from  `content["bids"]` becomes invalid when you call `content["asks"]`.
+  If you have retrieved `content["bids"].get_array()` and you later call
+  `content["asks"].get_array()`, then the first array should no longer be accessed: it would be
+  unsafe to do so. You can detect such mistakes by first compiling and running the code in
+  Debug mode: an OUT_OF_ORDER_ITERATION error is generated.
 
   > NOTE: JSON allows you to escape characters in keys. E.g., the key `"date"` may be written as
   > `"\u0064\u0061\u0074\u0065"`. By default, simdjson does *not* unescape keys when matching by default.
@@ -416,7 +433,8 @@ support for users who avoid exceptions. See [the simdjson error handling documen
 * **Counting elements in arrays:** Sometimes it is useful to scan an array to determine its length prior to parsing it.
   For this purpose, `array` instances have a `count_elements` method. Users should be
   aware that the `count_elements` method can be costly since it requires scanning the
-  whole array. You may use it as follows if your document is itself an array:
+  whole array. You should only call `count_elements` as a last resort as it may
+  require scanning the document twice or more. You may use it as follows if your document is itself an array:
 
   ```C++
   auto cars_json = R"( [ 40.1, 39.9, 37.7, 40.4 ] )"_padded;
@@ -436,14 +454,15 @@ support for users who avoid exceptions. See [the simdjson error handling documen
   size_t count = test_array.count_elements(); // requires simdjson 1.0 or better
   std::cout << "Number of elements: " <<  count << std::endl;
   for(ondemand::object elem: test_array) {
-     std::cout << simdjson::to_string(elem);
+     std::cout << simdjson::to_json_string(elem);
   }
   ```
 * **Counting fields in objects:** Other times, it is useful to scan an object to determine the number of fields prior to
   parsing it.
   For this purpose, `object` instances have a `count_fields` method. Again, users should be
   aware that the `count_fields` method can be costly since it requires scanning the
-  whole objects. You may use it as follows if your document is itself an object:
+  whole objects. You should only call `count_fields` as a last resort as it may
+  require scanning the document twice or more.  You may use it as follows if your document is itself an object:
 
   ```C++
   ondemand::parser parser;
@@ -463,8 +482,20 @@ support for users who avoid exceptions. See [the simdjson error handling documen
   std::cout << "Number of fields: " <<  count << std::endl; // Prints "Number of fields: 2"
   ```
 * **Tree Walking and JSON Element Types:** Sometimes you don't necessarily have a document
-  with a known type, and are trying to generically inspect or walk over JSON elements. To do that, you can use iterators and the `type()` method. You can also represent arbitrary JSON values with
+  with a known type, and are trying to generically inspect or walk over JSON elements.
+  You can also represent arbitrary JSON values with
   `ondemand::value` instances: it can represent anything except a scalar document (lone number, string, null or Boolean). You can check for scalar documents with the method `scalar()`.
+  You can query the type of a document or a value with the `type()` method.
+  The `type()` method does not consume or validate documents and values, but it tells you whether they are
+  - arrays (`json_type::array`),
+  - objects (`json_type::object`)
+  - numbers (`json_type::number`),
+  - strings (`json_type::string`),
+  - Booleans (`json_type::boolean`),
+  - null (`json_type::null`).
+
+  You must still validate and consume the values (e.g., call `is_null()`) after calling `type()`.
+   You may also access [raw strings](#raw-strings).
   For example, the following is a quick and dirty recursive function that verbosely prints the JSON document as JSON. This example also illustrates lifecycle requirements: the `document` instance holds the iterator. The document must remain in scope while you are accessing instances of `value`, `object` and `array`.
   ```c++
   void recursive_print_json(ondemand::value element) {
@@ -513,7 +544,11 @@ support for users who avoid exceptions. See [the simdjson error handling documen
       cout << element.get_bool();
       break;
     case ondemand::json_type::null:
-      cout << "null";
+      // We check that the value is indeed null
+      // otherwise: an error is thrown.
+      if(element.is_null()) {
+        cout << "null";
+      }
       break;
     }
   }
@@ -761,7 +796,7 @@ The entire simdjson API is usable with and without exceptions. All simdjson APIs
 pair. You can retrieve the value with .get() without generating an exception, like so:
 
 ```c++
-ondemand::element doc;
+ondemand::document doc;
 auto error = parser.iterate(json).get(doc);
 if (error) { cerr << error << endl; exit(1); }
 ```
@@ -912,11 +947,11 @@ bool parse() {
   // Iterating through an array of objects
   auto error = parser.iterate(cars_json).get(doc);
   if(error) { std::cerr << error << std::endl; return false; }
-  ondemand::array cars;
+  ondemand::array cars; // invalid until the get() succeeds
   error = doc.get_array().get(cars);
 
   for (auto car_value : cars) {
-    ondemand::object car;
+    ondemand::object car; // invalid until the get() succeeds
     error = car_value.get_object().get(car);
     if(error) { std::cerr << error << std::endl; return false; }
 
@@ -953,6 +988,19 @@ bool parse() {
 }
 ```
 
+For safety, you should only use our ondemand instances (e.g., `ondemand::object`)
+after you have initialized them and checked that there is no error:
+
+```c++
+    ondemand::object car; // invalid until the get() succeeds
+    // the `car` instance should not use used before it is initialized
+    error = car_value.get_object().get(car);
+    if(error) {
+      // the `car` instance should not use used
+    } else {
+      // the `car` instance can be safely used
+    }
+```
 
 The following examples illustrates how to iterate through the content of an object without
 having to handle exceptions.
@@ -962,7 +1010,7 @@ having to handle exceptions.
   ondemand::document doc;
   auto error = parser.iterate(json).get(doc);
   if(error) { return false; }
-  ondemand::object object;
+  ondemand::object object; // invalid until the get() succeeds
   error = doc.get_object().get(object);
   if(error) { return false; }
   for(auto field : object) {
@@ -991,7 +1039,7 @@ target_compile_definitions(simdjson PUBLIC SIMDJSON_EXCEPTIONS=OFF)
 Users more comfortable with an exception flow may choose to directly cast the `simdjson_result<T>` to the desired type:
 
 ```c++
-simdjson::ondemande::document doc = parser.iterate(json); // Throws an exception if there was an error!
+simdjson::ondemand::document doc = parser.iterate(json); // Throws an exception if there was an error!
 ```
 
 When used this way, a `simdjson_error` exception will be thrown if an error occurs, preventing the
@@ -1078,6 +1126,9 @@ for (auto val : doc) {
 std::cout << doc.current_location() << std::endl;   // Throws OUT_OF_BOUNDS
 ```
 
+Conversely, if `doc.current_location().error() == simdjson::SUCCESS`,
+then the document has more content.
+
 Finally, the `current_location()` method may also be used even when no exceptions/errors
 are thrown. This can be helpful for users that want to know the current state of iteration during parsing. For example:
 
@@ -1086,7 +1137,7 @@ auto json = R"( [[1,2,3], -23.4, {"key": "value"}, true] )"_padded;
 ondemand::parser parser;
 auto doc = parser.iterate(json);
 for (auto val : doc) {
-  ondemand::object obj;
+  ondemand::object obj; // invalid until the get() succeeds
   auto error = val.get_object().get(obj);     // Only get objects
   if (!error) {
     std::cout << doc.current_location() << std::endl;   // Prints ""key": "value"}, true] "
@@ -1146,7 +1197,7 @@ Direct Access to the Raw String
 
 The simdjson library makes explicit assumptions about types. For examples, numbers
 must be integers (up to 64-bit integers) or binary64 floating-point numbers. Some users
-have different needs. For example, some users might want to support big infloating-point number followed by an integer.tegers.
+have different needs. For example, some users might want to support big integers.
 The library makes this possible by providing a `raw_json_token` method which returns
 a `std::string_view` instance containing the value as a string which you may then
 parse as you see fit.
@@ -1401,10 +1452,6 @@ You must check the type before accessing the value: it is an error to call `get_
 
 The `get_number()` function is designed with performance in mind. When calling `get_number()`, you scan the number string only once, determining efficiently the type and storing it in an efficient manner.
 
-If you only need to compute `v.get_number().get_number_type()` on
-a `document` or `value` instance, you should call directly the faster method
-`v.get_number_type()` which does not generate an
-intermediate `number` instance.
 
 Consider the following example:
 ```C++
@@ -1417,9 +1464,7 @@ Consider the following example:
       std::cout << "negative: " << val.is_negative() << " ";
       std::cout << "is_integer: " << val.is_integer() << " ";
       ondemand::number num = val.get_number();
-      // direct computation without materializing the number:
-      ondemand::number_type dt = val.get_number_type();
-      if(t != dt) { throw std::runtime_error("bug"); }
+      ondemand::number_type t = num.get_number_type();
       switch(t) {
         case ondemand::number_type::signed_integer:
           std::cout  << "integer: " << int64_t(num) << " ";
@@ -1448,6 +1493,42 @@ It will output:
 9999999999999999999 negative: 0 is_integer: 1 large 64-bit integer: 9999999999999999999 large 64-bit integer: 9999999999999999999
 ```
 
+Raw Strings
+-----------
+
+It is sometimes useful to have access to a raw (unescaped) string: we make available a
+minimalist `raw_json_string` data type which contains a pointer inside the string in the
+original document, right after the quote. It is accessible via `get_raw_json_string()` on a
+string instance and returned by the `key()` method on an object's field instance. It is always
+optional: replacing `get_raw_json_string()` with `get_string()` and `key()` by
+`unescaped_key()` returns an `string_view` instance of the unescaped string.
+
+You can quickly compare a `raw_json_string` instance with a target string. You may also
+unescape  the `raw_json_string` on your own string buffer: `parser.unescape(mystr, ptr)`
+advances the provided pointer `ptr` and returns a string_view instance on the newly serialized
+string upon success, otherwise it returns an error. When unescaping to your own string buffer,
+you should ensure that you have sufficient memory space: the total size of the strings plus
+`simdjson::SIMDJSON_PADDING` bytes. The following example illustrates how we can unescape
+JSON string to a user-provided buffer:
+
+```C++
+    auto json = R"( {"name": "Jack The Ripper \u0033"} )"_padded;
+    // We create a buffer large enough to store all strings we need:
+    std::unique_ptr<uint8_t[]> buffer(new uint8_t[json.size() + simdjson::SIMDJSON_PADDING]);
+    uint8_t * ptr = buffer.get();
+    ondemand::parser parser;
+    ondemand::document doc = parser.iterate(json);
+    // We store our strings as 'string_view' instances in a vector:
+    std::vector<std::string_view> mystrings;
+    for (auto key_value : doc.get_object()) {
+      std::string_view keysv = parser.unescape(key_value.key(), ptr);// writes 'name'
+      mystrings.push_back(keysv);
+      std::string_view valuesv = parser.unescape(key_value.value().get_raw_json_string(), ptr);
+      // writes 'Jack The Ripper 3', escaping the \u0033
+      mystrings.push_back(valuesv);
+    }
+```
+
 Thread Safety
 -------------
 
@@ -1469,12 +1550,12 @@ Standard Compliance
 
 The simdjson library is fully compliant with  the [RFC 8259](https://www.tbray.org/ongoing/When/201x/2017/12/14/rfc8259.html) JSON specification.
 
-- The only insignificant whitespace characters allowed are the space, the horizontal tab, the line feed and the carriage return. In particular, a JSON document may not contain an unespaced null character.
+- The only insignificant whitespace characters allowed are the space, the horizontal tab, the line feed and the carriage return. In particular, a JSON document may not contain an unescaped null character.
 - A single string or a single number is considered to be a valid JSON document.
 - We fully validate the numbers according to the JSON specification. For example,  the string `01` is not valid JSON document since the specification states that *leading zeros are not allowed*.
 - The specification allows implementations to set limits on the range and precision of numbers accepted.  We support 64-bit floating-point numbers as well as integer values.
-  - We parse integers and floating-point numbers afloating-point number followed by an integer.s separate types which allows us to support all signed (two's complement) 64-bit integersfloating-point number followed by an integer., like a Java `long` or a C/C++ `long long` and all 64-bit unsigned integers. When we cannot represent exactly an integer as a signed or unsigned 64-bit value, we reject the JSON document.
-  - We support the full range of 64-bit floating-point numbers (binary64). The values range from `std::numeric_limits<double>::lowest()`  to `std::numefloating-point number followed by an integer.ric_limits<double>::max()`, so from -1.7976e308 all the way to 1.7975e308. Extreme values (less or equal to -1e308, greater or equal to 1e308) are rejected: we refuse to parse the input document. Numbers are parsed with a perfect accuracy (ULP 0): the nearest floating-point value is chosen, rounding to even when needed. If you serialized your floating-point numbers with 17floating-point value  followed by an integer. significant digits in a standard compliant manner, the simdjson library is guaranfloating-point number followed by an integer.teed to recover the same numbers, exactly.
+  - We parse integers and floating-point numbers as separate types which allows us to support all signed (two's complement) 64-bit integers, like a Java `long` or a C/C++ `long long` and all 64-bit unsigned integers. When we cannot represent exactly an integer as a signed or unsigned 64-bit value, we reject the JSON document.
+  - We support the full range of 64-bit floating-point numbers (binary64). The values range from `std::numeric_limits<double>::lowest()`  to `std::numeric_limits<double>::max()`, so from -1.7976e308 all the way to 1.7975e308. Extreme values (less or equal to -1e308, greater or equal to 1e308) are rejected: we refuse to parse the input document. Numbers are parsed with a perfect accuracy (ULP 0): the nearest floating-point value is chosen, rounding to even when needed. If you serialized your floating-point numbers with 17 significant digits in a standard compliant manner, the simdjson library is guaranteed to recover the same numbers, exactly.
 - The specification states that JSON text exchanged between systems that are not part of a closed ecosystem MUST be encoded using UTF-8. The simdjson library does full UTF-8 validation as part of the parsing. The specification states that implementations MUST NOT add a byte order mark: the simdjson library rejects documents starting with a  byte order mark.
 - The simdjson library validates string content for unescaped characters. Unescaped line breaks and tabs in strings are not allowed.
 - The simdjson library accepts objects with repeated keys: all of the name/value pairs, including duplicates, are reported. We do not enforce key uniqueness.
